@@ -1,0 +1,9 @@
+[package]
+name = "gameboyrust"
+version = "0.1.0"
+authors = ["Richard Fortescue-Webb <rfwebb@gmail.com>"]
+
+[dependencies]
+enum_primitive = "0.1.0"
+num = "0.1.31"
+bitflags = "0.4.0"
