@@ -1,13 +1,37 @@
 use std::fmt;
 
-bitflags!(
-    flags Flags: u8 {
-        const ZERO         = 0b_1000_0000,
-        const ADD_SUBTRACT = 0b_0100_0000,
-        const HALF_CARRY   = 0b_0010_0000,
-        const CARRY        = 0b_0001_0000
+#[derive(Debug)]
+pub struct Flags {
+    pub zero: bool,
+    pub add_subtract: bool,
+    pub half_carry: bool,
+    pub carry: bool,
+}
+
+impl Flags {
+    pub fn new() -> Flags {
+        Flags {
+            zero: false,
+            add_subtract: false,
+            half_carry: false,
+            carry: false,
+        }
     }
-);
+
+    pub fn clear(&mut self) {
+        self.zero = false;
+        self.add_subtract = false;
+        self.half_carry = false;
+        self.carry = false;
+    }
+
+    pub fn set(&mut self, zero: bool, add_subtract: bool, half_carry: bool, carry: bool) {
+        self.zero = zero;
+        self.add_subtract = add_subtract;
+        self.half_carry = half_carry;
+        self.carry = carry;
+    }
+}
 
 
 pub struct Registers {
@@ -41,9 +65,10 @@ impl Registers {
             c: 0,
             d: 0,
             e: 0,
-            f: ZERO,
+            f: Flags::new(),
             h: 0,
             l: 0 
         }
     }
+
 }

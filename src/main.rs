@@ -1,5 +1,8 @@
+#![cfg_attr(feature = "assignment_operators", feature(augmented_assignments, op_assign_traits))]
+
 #[macro_use] extern crate enum_primitive;
 extern crate num;
+
 #[macro_use]
 extern crate bitflags;
 
@@ -8,6 +11,7 @@ mod cpu;
 mod bootrom;
 mod gameboy;
 mod registers;
+mod mmu;
 
 use std::path::Path;
 use std::env;

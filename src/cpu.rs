@@ -1,27 +1,28 @@
 use super::bootrom;
 use registers;
+use mmu;
 
 pub struct CPU {
-    boot_rom: bootrom::BootRom,
+    mmu: mmu::MMU,
     registers: registers::Registers,
 }
 
 impl CPU {
     pub fn new(boot_rom: bootrom::BootRom) -> CPU {
         CPU {
-            boot_rom: boot_rom,
+            mmu: mmu::MMU::new(boot_rom),
             registers: registers::Registers::new(),
         }
     }
 
     pub fn run_instruction(&mut self) {
         println!("Registers {}", self.registers);
-        println!("0x{:x}", self.boot_rom.rb(self.registers.pc));
+        println!("0x{:x}", self.mmu.rb(self.registers.pc));
         self.registers.pc += self.do_instruction();
     }
 
     pub fn do_instruction(&mut self) -> u16 {
-        let opcode = self.boot_rom.rb(self.registers.pc);
+        let opcode = self.mmu.rb(self.registers.pc);
         match opcode {
             // NOP | Bytes: 1  Cycles: 4 Flags: - - - -
             0x00 => { 1 },
@@ -45,7 +46,7 @@ impl CPU {
             0x09 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD A,(BC) | Bytes: 1  Cycle:8 Flags: - - - -	
             0x0a => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
-            // DEC BC | Bytes: 1  Cycle:8 Flags: - - - -	
+           // DEC BC | Bytes: 1  Cycle:8 Flags: - - - -	
             0x0b => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC C | Bytes: 1  Cycle:4 Flags: Z 0 H -	
             0x0c => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
@@ -90,7 +91,7 @@ impl CPU {
             // JR NZ,r8 | Bytes: 2  Cycle: 12/8 Flags: - - - -	
             0x20 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD HL,d16 | Bytes: 3  Cycle:1 Flags: - - - -	
-            0x21 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x21 => { let hl = self.mmu.rw(self.registers.pc + 1); self.registers.h = (hl >> 8) as u8; self.registers.l = (hl & 0x00FF) as u8; 3},
             // LD (HL+),A | Bytes: 1  Cycle:8 Flags: - - - -	
             0x22 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC HL | Bytes: 1  Cycle:8 Flags: - - - -	
@@ -122,8 +123,9 @@ impl CPU {
             // JR NC,r8 | Bytes: 2  Cycle: 12/8 - - - -	
             0x30 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD SP,d16 | Bytes: 3  Cycle:1 Flags: - - - -	
-            0x31 => { },
+            0x31 => { self.registers.sp = self.mmu.rw(self.registers.pc + 1); 3},
             // LD (HL-),A | Bytes: 1  Cycle:8 Flags: - - - -	
+            // Decrement HL and load A into that address. Does it decrement before or after?
             0x32 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC SP | Bytes: 1  Cycle:8 Flags: - - - -	
             0x33 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
@@ -374,7 +376,7 @@ impl CPU {
             // XOR (HL) | Bytes: 1  Cycle:8 Flags: Z 0 0 0	
             0xae => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // XOR A | Bytes: 1  Cycle:4 Flags: Z 0 0 0
-            0xaf => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0xaf => { let b = self.mmu.rb(self.registers.pc + 1); self.xor(b); 1},
             // OR B | Bytes: 1  Cycle:4 Flags: Z 0 0 0	
             0xb0 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // OR C | Bytes: 1  Cycle:4 Flags: Z 0 0 0	
@@ -537,5 +539,11 @@ impl CPU {
             0xff => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             x => { panic!("Unrecognized OpCode! {:?}", x) },
         }
+    }
+
+    fn xor(&mut self, input: u8) {
+        let a = self.registers.a ^ input;
+        self.registers.a = a;
+        self.registers.f.set(a==0, false, false, false);
     }
 }
