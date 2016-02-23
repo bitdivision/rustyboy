@@ -125,8 +125,8 @@ impl CPU {
             // LD SP,d16 | Bytes: 3  Cycle:1 Flags: - - - -	
             0x31 => { self.registers.sp = self.mmu.rw(self.registers.pc + 1); 3},
             // LD (HL-),A | Bytes: 1  Cycle:8 Flags: - - - -	
-            // Decrement HL and load A into that address. Does it decrement before or after?
-            0x32 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            // LD HL and then decrement
+            0x32 => {let hl = self.mmu.rw(self.registers.pc + 1); self.registers.h = (hl >> 8) as u8; self.registers.l = (hl & 0x00FF) as u8; self.registers.h--; self.registers.l--; 3},
             // INC SP | Bytes: 1  Cycle:8 Flags: - - - -	
             0x33 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC (HL) | Bytes: 1  Cycle:1 Flags: Z 0 H -	
