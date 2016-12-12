@@ -5,14 +5,12 @@ use super::bootrom;
 // TODO: Really this should have the boot rom involved
 pub struct Gameboy {
     cpu: cpu::CPU,
-    cartridge: cartridge::Cartridge
 }
 
 impl Gameboy {
-    pub fn new(boot_rom: bootrom::BootRom, cart:cartridge::Cartridge) -> Gameboy {
+    pub fn new(boot_rom: bootrom::BootRom, cart: cartridge::Cartridge) -> Gameboy {
         Gameboy {
-            cpu: cpu::CPU::new(boot_rom),
-            cartridge: cart,
+            cpu: cpu::CPU::new(boot_rom, cart),
         }
     }
     

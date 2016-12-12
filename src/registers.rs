@@ -71,4 +71,22 @@ impl Registers {
         }
     }
 
+    pub fn set_hl(&mut self, hl: u16) {
+        self.h = (hl >> 8) as u8;
+        self.l = (hl & 0x00FF) as u8;
+    }
+
+    pub fn get_hl(&mut self) -> u16 {
+        (((self.h as u16) << 8) | self.l as u16)
+    }
+
+    pub fn set_de(&mut self, de: u16) {
+        self.d = (de >> 8) as u8;
+        self.e = (de & 0x00FF) as u8;
+    }
+
+    pub fn get_de(&mut self) -> u16 {
+        (((self.d as u16) << 8) | self.e as u16)
+    }
+
 }

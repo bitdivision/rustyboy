@@ -34,7 +34,7 @@ enum RAMSize {
 
 pub struct Cartridge {
     // The ROM data
-    rom: Vec<u8>,
+    pub rom: Vec<u8>,
     rom_size: ROMSize,
     ram_size: RAMSize,
 }

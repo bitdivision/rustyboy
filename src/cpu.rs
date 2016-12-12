@@ -1,4 +1,5 @@
 use super::bootrom;
+use super::cartridge;
 use registers;
 use mmu;
 
@@ -8,9 +9,9 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(boot_rom: bootrom::BootRom) -> CPU {
+    pub fn new(boot_rom: bootrom::BootRom, cart: cartridge::Cartridge) -> CPU {
         CPU {
-            mmu: mmu::MMU::new(boot_rom),
+            mmu: mmu::MMU::new(boot_rom, cart),
             registers: registers::Registers::new(),
         }
     }
@@ -18,7 +19,8 @@ impl CPU {
     pub fn run_instruction(&mut self) {
         println!("Registers {}", self.registers);
         println!("0x{:x}", self.mmu.rb(self.registers.pc));
-        self.registers.pc += self.do_instruction();
+        let instruction_length = self.do_instruction();
+        self.registers.pc += instruction_length
     }
 
     pub fn do_instruction(&mut self) -> u16 {
@@ -53,13 +55,13 @@ impl CPU {
             // DEC C | Bytes: 1  Cycle:4 Flags: Z 1 H -	
             0x0d => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD C,d8 | Bytes: 2  Cycle:8 Flags: - - - -	
-            0x0e => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x0e => { self.registers.c = self.mmu.rb(self.registers.pc + 1); 2},
             // RRCA | Bytes: 1  Cycle:4 Flags: 0 0 0 C
             0x0f => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // STOP 0 | Bytes: 2  Cycle:4 Flags: - - - -	
             0x10 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD DE,d16 | Bytes: 3  Cycle:1 Flags: - - - -	
-            0x11 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x11 => { self.ld_de_d16() },
             // LD (DE),A | Bytes: 1  Cycle:8 Flags: - - - -	
             0x12 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC DE | Bytes: 1  Cycle:8 Flags: - - - -	
@@ -77,7 +79,7 @@ impl CPU {
             // ADD HL,DE | Bytes: 1  Cycle:8 Flags: - 0 H C	
             0x19 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD A,(DE) | Bytes: 1  Cycle:8 Flags: - - - -	
-            0x1a => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x1a => { self.ld_a_addr_de()},
             // DEC DE | Bytes: 1  Cycle:8 Flags: - - - -	
             0x1b => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC E | Bytes: 1  Cycle:4 Flags: Z 0 H -	
@@ -85,13 +87,16 @@ impl CPU {
             // DEC E | Bytes: 1  Cycle:4 Flags: Z 1 H -	
             0x1d => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD E,d8 | Bytes: 2  Cycle:8 Flags: - - - -	
-            0x1e => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x1e => self.ld_e_d8(),
             // RRA | Bytes: 1  Cycle:4 Flags: 0 0 0 C
             0x1f => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // JR NZ,r8 | Bytes: 2  Cycle: 12/8 Flags: - - - -	
-            0x20 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            // Load an 8 bit relative address, add it to the pc and return
+            0x20 => { 
+                self.jr_nz()
+            },
             // LD HL,d16 | Bytes: 3  Cycle:1 Flags: - - - -	
-            0x21 => { let hl = self.mmu.rw(self.registers.pc + 1); self.registers.h = (hl >> 8) as u8; self.registers.l = (hl & 0x00FF) as u8; 3},
+            0x21 => self.ld_hl(),
             // LD (HL+),A | Bytes: 1  Cycle:8 Flags: - - - -	
             0x22 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC HL | Bytes: 1  Cycle:8 Flags: - - - -	
@@ -126,7 +131,7 @@ impl CPU {
             0x31 => { self.registers.sp = self.mmu.rw(self.registers.pc + 1); 3},
             // LD (HL-),A | Bytes: 1  Cycle:8 Flags: - - - -	
             // LD HL and then decrement
-            0x32 => {let hl = self.mmu.rw(self.registers.pc + 1); self.registers.h = (hl >> 8) as u8; self.registers.l = (hl & 0x00FF) as u8; self.registers.h--; self.registers.l--; 3},
+            0x32 => self.ld_hld(),
             // INC SP | Bytes: 1  Cycle:8 Flags: - - - -	
             0x33 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // INC (HL) | Bytes: 1  Cycle:1 Flags: Z 0 H -	
@@ -150,7 +155,7 @@ impl CPU {
             // DEC A | Bytes: 1  Cycle:4 Flags: Z 1 H -	
             0x3d => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD A,d8 | Bytes: 2  Cycle:8 Flags: - - - -	
-            0x3e => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x3e => { self.registers.a = self.mmu.rb(self.registers.pc + 1); 2},
             // CCF | Bytes: 1  Cycle:4 Flags: - 0 0 C
             0x3f => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD B,B | Bytes: 1  Cycle:4 Flags: - - - -	
@@ -264,7 +269,7 @@ impl CPU {
             // HALT | Bytes: 1  Cycle:4 Flags: - - - -	
             0x76 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD (HL),A | Bytes: 1  Cycle:8 Flags: - - - -	
-            0x77 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0x77 => self.ld_addr_hl_a(),
             // LD A,B | Bytes: 1  Cycle:4 Flags: - - - -	
             0x78 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD A,C | Bytes: 1  Cycle:4 Flags: - - - -	
@@ -376,7 +381,7 @@ impl CPU {
             // XOR (HL) | Bytes: 1  Cycle:8 Flags: Z 0 0 0	
             0xae => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // XOR A | Bytes: 1  Cycle:4 Flags: Z 0 0 0
-            0xaf => { let b = self.mmu.rb(self.registers.pc + 1); self.xor(b); 1},
+            0xaf => { let a = self.registers.a; self.xor(a); 1},
             // OR B | Bytes: 1  Cycle:4 Flags: Z 0 0 0	
             0xb0 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // OR C | Bytes: 1  Cycle:4 Flags: Z 0 0 0	
@@ -432,11 +437,18 @@ impl CPU {
             // JP Z,a16 | Bytes: 3  Cycle:16/12 Flags: - - - -	
             0xca => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // PREFIX CB | Bytes: 1  Cycle:4 Flags: - - - -	
-            0xcb => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            // HACK! This is a whole other instruction set.
+            // We're just doing BIT H, 7
+            0xcb => {
+                let res = self.registers.h & (1 << (7 as u32)) == 0;
+                self.registers.f.set(res, false, true, false);
+                2
+            },
             // CALL Z,a16 | Bytes: 3  Cycle:24/12 Flags: - - - -	
             0xcc => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
-            // CALL a16 Byt| es3  Cycle:24 Flags: - - - -	
-            0xcd => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            // CALL a16 | Bytes: 3  Cycle:24 Flags: - - - -	
+            // Next instruction PC on stack. Then jump
+            0xcd => self.call(),
             // ADC A,d8 Bytes: 2  Cycle:8 Flags: Z 0 H C	
             0xce => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // RST 08H | Bytes: 1  Cycle:16 Flags: - - - -
@@ -474,11 +486,11 @@ impl CPU {
             // RST 18H | Bytes: 1  Cycle:16 Flags: - - - -
             0xdf => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LDH (a8),A | Bytes: 2  Cycle:12 Flags: - - - -	
-            0xe0 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0xe0 => self.ld_addr_a8_a(),
             // POP HL | Bytes: 1  Cycle:12 Flags: - - - -	
             0xe1 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // LD (C),A | Bytes: 2  Cycle:8 Flags: - - - -	 	 	
-            0xe2 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
+            0xe2 => self.ld_addr_c_a(),
             // Undocumented
             0xe3 => { panic!("Opcode: 0x{:02X} Instruction not implemented yet", opcode) },
             // Undocumented
@@ -545,5 +557,87 @@ impl CPU {
         let a = self.registers.a ^ input;
         self.registers.a = a;
         self.registers.f.set(a==0, false, false, false);
+    }
+
+    fn jr_nz(&mut self) -> u16 {
+        if (self.registers.f.zero == false) {
+            let pc = self.registers.pc as i32; 
+            // TODO: This won't work with larger jumps, need to find the proper way to cast it.
+            let rel = (self.mmu.rb(self.registers.pc + 1) as i8) as i32; 
+            let target = pc.wrapping_add(rel) + 2;
+            self.registers.pc = target as u16;
+            0
+        } else {
+            2
+        }
+    }
+
+    fn ld_hld (&mut self) -> u16 {
+        // TODO: generic way to do this.
+        let mut hl = self.registers.get_hl();
+        self.mmu.wb(hl, self.registers.a);
+        hl -= 1;
+        self.registers.set_hl(hl);
+        1
+    }
+
+    fn ld_hl (&mut self) -> u16 {
+         let hl = self.mmu.rw(self.registers.pc + 1);
+         self.registers.set_hl(hl);
+         3
+    }
+
+    fn ld_addr_c_a (&mut self) -> u16 {
+        let addr_c = 0xFF00 + (self.registers.c as u16);
+        let val = self.registers.a;
+        self.mmu.wb(addr_c, val);
+        2
+    }
+
+    fn ld_addr_a8_a (&mut self) -> u16 {
+        let addr = 0xFF00 + ((self.mmu.rb(self.registers.pc + 1)) as u16);
+        let val = self.registers.a;
+        self.mmu.wb(addr, val);
+        2
+    }
+
+    fn ld_addr_hl_a (&mut self) -> u16 {
+        let addr_hl = self.registers.get_hl();
+        let val = self.registers.a;
+        self.mmu.wb(addr_hl, val);
+        1
+    }
+
+    fn ld_e_d8 (&mut self) -> u16 {
+        let val = self.mmu.rb(self.registers.pc + 1);
+        self.registers.e = val;
+        2
+    }
+
+    fn ld_de_d16 (&mut self) -> u16 {
+        let val = self.mmu.rw(self.registers.pc + 1);
+        self.registers.set_de(val);
+        3
+    }
+
+    fn ld_a_addr_de (&mut self) -> u16 {
+        let addr = self.registers.get_de();
+        println!("addr: {:x}", addr);
+        let val = self.mmu.rb(addr);
+        self.registers.a = val;
+        1
+    }
+
+    fn call (&mut self) -> u16 {
+        let next_pc = self.registers.pc + 3;
+        self.push_word(next_pc);
+        let jump_to = self.mmu.rw(self.registers.pc + 1);
+        self.registers.pc = jump_to;
+        0
+    }
+
+    pub fn push_word(&mut self, val: u16) {
+        self.registers.sp -= 2;
+        self.mmu.ww(self.registers.sp, val);
     }
 }
