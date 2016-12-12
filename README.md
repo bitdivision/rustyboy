@@ -1,5 +1,5 @@
-A gameboy emulator written in Rust.
+A gameboy emulator written in Rust. Very much a work in progress
 
-Yet another rust emulator for gameboy... They seem like a good way to learn the language better.
+Yet another rust emulator for gameboy... 
 
 
